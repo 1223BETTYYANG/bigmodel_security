@@ -43,6 +43,7 @@
             font-family: 'Inter', system-ui, sans-serif;
             position: relative;
             overflow-x: hidden;
+            padding: 20px;
         }
 
         /* 滚动条美化 */
@@ -488,6 +489,9 @@
             border-radius: 12px;
             border: 20px solid var(--border-light);
             box-shadow: var(--shadow-sm);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
 
         .json-card h3 {
@@ -504,15 +508,16 @@
         }
 
         .raw-json-block {
+            flex: 1;
             background: rgba(0, 32, 63, 0.02);
             color: #334155;
             padding: 15px;
             border-radius: 8px;
             font-family: "Consolas", monospace;
             font-size: 0.85rem;
-            max-height: 150px;
-            overflow: auto;
+            overflow-y: auto;
             border: 1px solid rgba(74, 180, 244, 0.1);
+            margin: 0;
         }
 
         /* 表格容器 */
@@ -793,7 +798,7 @@
 
     <!-- 主搜索框区域 - 全宽 -->
     <div class="cyber-search-box">
-        <form method="get" action="{% url 'ipsearch' %}">
+        <form method="get" action="{% url 'ipsearch:search' %}">
             <div class="cyber-input-group">
                 <input type="text" id="id_query" name="query" 
                        placeholder="输入IP/域名进行威胁分析..." 
@@ -817,43 +822,16 @@
             <div id="threatMap" style="width:100%; height:100%;"></div>
         </div>
 
-        {{ results2|json_script:"fofa-json-data" }}
-
-        <div class="json-card">
-            <h3><i class="fas fa-code"></i>JSON返回（共 {{ results2|length }} 条）</h3>
-            <pre id="fofa-raw-json" class="raw-json-block"></pre>
-            <h3 style="margin-top:1.5em;"><i class="fas fa-server"></i>相关服务信息</h3>
-            <div class="table-container">
-                <table class="db-table">
-                  <thead>
-                    <tr>
-                      <th><i class="fas fa-network-wired me-1"></i>IP</th>
-                      <th><i class="fas fa-info-circle me-1"></i>Status</th>
-                      <th><i class="fas fa-exchange-alt me-1"></i>Protocol</th>
-                      <th><i class="far fa-clock me-1"></i>Timestamp</th>
-                      <th><i class="fas fa-terminal me-1"></i>Status Line</th>
-                      <th><i class="fas fa-tag me-1"></i>Proto Name</th>
-                      <th><i class="fas fa-code-branch me-1"></i>Version</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in db_rows %}
-                    <tr>
-                      <td>{{ row.ip }}</td>
-                      <td>{{ row.status }}</td>
-                      <td>{{ row.protocol }}</td>
-                      <td>{{ row.timestamp }}</td>
-                      <td>{{ row.status_line }}</td>
-                      <td>{{ row.protocol_name }}</td>
-                      <td>{{ row.body_version }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                      <td colspan="8" style="text-align:center;">无记录</td>
-                    </tr>
+        <div class="json-card" style="height: 100%; display: flex; flex-direction: column;">
+            <h3><i class="fas fa-network-wired"></i>Nmap 扫描信息</h3>
+            <div class="raw-json-block" style="flex: 1; font-family: 'Consolas', monospace; white-space: pre-wrap; background: rgba(0, 32, 63, 0.02); padding: 20px; border-radius: 8px; border: 1px solid rgba(74, 180, 244, 0.1); overflow-y: auto; margin: 0;">
+                {% if nmap_scans %}
+                    {% for scan in nmap_scans %}
+                        {{ scan.raw_output|default:"No scan results available" }}
                     {% endfor %}
-                  </tbody>
-                </table>
+                {% else %}
+                    No scan results available
+                {% endif %}
             </div>
         </div>
     </div>
@@ -863,10 +841,8 @@
             <thead>
                 <tr>
                     <th><i class="fas fa-globe me-2"></i>IP地址</th>
-                    <th><i class="fas fa-map-marker-alt me-2"></i>地理位置</th>
-                    <th><i class="fas fa-exclamation-triangle me-2"></i>威胁等级</th>
-                    <th><i class="far fa-calendar-alt me-2"></i>最近活跃</th>
-                    <th><i class="fas fa-link me-2"></i>关联事件</th>
+                    <th><i class="fas fa-map-marker-alt me-2"></i>国家地区</th>
+                    <th><i class="far fa-calendar-alt me-2"></i>暴露时间</th>
                 </tr>
             </thead>
             <tbody>
@@ -880,17 +856,11 @@
                             {{ result.city|default:"-" }}
                         </div>
                     </td>
-                    <td>
-                        <div class="threat-level level-{{ result.threat_level }}">
-                            {{ result.get_threat_level_display }}
-                        </div>
-                    </td>
-                    <td>{{ result.last_active|date:"Y-m-d" }}</td>
-                    <td>{{ result.related_events }}</td>
+                    <td>{{ result.exposure_date|date:"Y-m-d" }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="no-result">
+                    <td colspan="3" class="no-result">
                         <img src="{% static 'images/no-data.svg' %}" 
                              alt="无结果"
                              class="empty-state">
@@ -1052,8 +1022,8 @@
             attributionControl: false
         }).setView([30, 104], 4);
     
-        // 使用深色主题地图
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        // 使用浅色主题地图
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
             attribution: null
         }).addTo(threatMap);
@@ -1099,10 +1069,12 @@
 
         // 创建标记
         const validPoints = resultsData.filter(item => 
-            !isNaN(item.latitude) && 
-            !isNaN(item.longitude) &&
-            Math.abs(item.latitude) <= 90 &&
-            Math.abs(item.longitude) <= 180
+            item.latitude && 
+            item.longitude && 
+            !isNaN(parseFloat(item.latitude)) && 
+            !isNaN(parseFloat(item.longitude)) &&
+            Math.abs(parseFloat(item.latitude)) <= 90 &&
+            Math.abs(parseFloat(item.longitude)) <= 180
         );
         
         // 创建标记簇
@@ -1176,11 +1148,6 @@
             });
         });
 
-        // JSON数据渲染
-        const raw = document.getElementById('fofa-json-data').textContent;
-        document.getElementById('fofa-raw-json').textContent =
-            JSON.stringify(JSON.parse(raw), null, 2);
-
         // 启动统计数字动画
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
@@ -1189,6 +1156,116 @@
                 animateCounter('attack-counter', 24);
                 animateCounter('source-counter', 37);
             }, 500);
+        });
+
+        // 服务端口映射（修正版）
+        const servicePorts = {
+            'ollama': '11434',     // API服务
+            'openwebui': '3000',   // 前端界面
+            'dify': '80',          // 生产环境HTTP端口
+            'xinference': '9997',  // 模型推理服务
+            'anythingllm': '3000', // 默认后端端口
+            'openllm': '3002',     // 避免与openwebui冲突
+            'vllm': '8000'         // 高速推理API
+        };
+
+        // 获取当前服务名称（从URL或其他地方）
+        function getCurrentService() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('service') || 'ollama'; // 默认使用ollama
+        }
+
+        // 执行Nmap扫描
+        async function performNmapScan(ip, port) {
+            try {
+                const response = await fetch(`/api/nmap-scan/?ip=${ip}&port=${port}`);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Nmap扫描失败:', error);
+                return null;
+            }
+        }
+
+        // 更新Nmap扫描结果表格
+        function updateNmapTable(scanResult) {
+            const tbody = document.querySelector('.db-table tbody');
+            if (!scanResult || !scanResult.ports) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align:center;">
+                            <div class="empty-state">
+                                <i class="fas fa-search fa-3x mb-3" style="color: #ccc;"></i>
+                                <p>暂无扫描数据</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = scanResult.ports.map(port => `
+                <tr>
+                    <td>${port.port}</td>
+                    <td>
+                        <span class="badge ${port.state === 'open' ? 'bg-success' : 'bg-secondary'}">
+                            ${port.state}
+                        </span>
+                    </td>
+                    <td>${port.protocol || '-'}</td>
+                    <td>${port.service || '-'}</td>
+                    <td>${port.version || '-'}</td>
+                    <td>
+                        <span class="badge ${getRiskLevelBadge(port.risk_level)}">
+                            ${getRiskLevelText(port.risk_level)}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 获取风险等级对应的样式
+        function getRiskLevelBadge(level) {
+            switch(level) {
+                case 'high': return 'bg-danger';
+                case 'medium': return 'bg-warning';
+                case 'low': return 'bg-info';
+                default: return 'bg-secondary';
+            }
+        }
+
+        // 获取风险等级文本
+        function getRiskLevelText(level) {
+            switch(level) {
+                case 'high': return '高风险';
+                case 'medium': return '中风险';
+                case 'low': return '低风险';
+                default: return '未知';
+            }
+        }
+
+        // 页面加载完成后执行扫描
+        document.addEventListener('DOMContentLoaded', async () => {
+            const currentService = getCurrentService();
+            const port = servicePorts[currentService];
+            const ip = new URLSearchParams(window.location.search).get('ip');
+            
+            if (ip && port) {
+                // 显示加载状态
+                const tbody = document.querySelector('.db-table tbody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align:center;">
+                            <div class="pulsing-circle"></div>
+                            <p>正在扫描中...</p>
+                        </td>
+                    </tr>
+                `;
+
+                // 执行扫描
+                const scanResult = await performNmapScan(ip, port);
+                updateNmapTable(scanResult);
+            }
         });
     </script>
 </body>
