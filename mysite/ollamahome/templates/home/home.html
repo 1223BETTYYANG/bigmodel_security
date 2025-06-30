@@ -1024,7 +1024,7 @@
         <div class="nav-links">
             <a href="/"><i class="fas fa-home"></i>首页</a>
             <a href="/distribution/?server=ollama"><i class="fas fa-globe-asia"></i>分布分析</a>
-            <a href="/ipsearch/?server=ollama"><i class="fas fa-search-location"></i>模型检索</a>
+            <a href="/ipsearch/?server=ollama"><i class="fas fa-search-location"></i>IP检索</a>
             <a href="#main-content"><i class="fas fa-chart-line"></i>数据统计</a>
         </div>
     </nav>
@@ -1064,22 +1064,20 @@
                 <div class="neon-card" onclick="location.href='/distribution/?server=ollama'">
                     <div class="card-header">
                         <i class="fas fa-globe-asia card-icon"></i>
-                        <h2 class="card-title">模型分布分析</h2>
+                        <h2 class="card-title">服务分布分析</h2>
                     </div>
                     <p class="card-desc">
-                        实时追踪全球AI模型部署情况，可视化计算节点分布，
-                        支持多维度性能监控与资源利用率分析
+                        实时追踪全球服务部署情况，可视化节点分布
                     </p>
                 </div>
 
                 <div class="neon-card" onclick="location.href='/ipsearch/?server=ollama'">
                     <div class="card-header">
                         <i class="fas fa-search-location card-icon"></i>
-                        <h2 class="card-title">智能模型检索</h2>
+                        <h2 class="card-title">智能IP检索</h2>
                     </div>
                     <p class="card-desc">
-                        支持自然语言检索与特征搜索，毫秒级匹配AI模型，
-                        提供版本追踪、性能指标与部署建议
+                        支持对指定IP进行检索
                     </p>
                 </div>
             </div>
@@ -1089,6 +1087,16 @@
                 <div class="loading-spinner">
                     <i class="fas fa-spinner fa-spin"></i>
                     数据加载中...
+                </div>
+                <!-- ollama部署asn Top 10图 -->
+                <div class="neon-card chart-card">
+                    <h3 class="chart-title">部署ollama的ASN Top 10</h3>
+                    <canvas id="asnChart"></canvas>
+                </div>
+                <!-- ollama部署asn organization Top 10图 -->
+                <div class="neon-card chart-card">
+                    <h3 class="chart-title">部署ollama的ASN Organization Top 10</h3>
+                    <canvas id="asnOrgChart"></canvas>
                 </div>
 
                 <!-- 日活量折线图 -->
@@ -1108,6 +1116,8 @@
                     <h3 class="chart-title">最多选择模型使用版本TOP10</h3>
                     <canvas id="versionTopChart"></canvas>
                 </div>
+
+      
             </div>
             <!-- LLM蜜罐信息捕获区块 -->
             <div class="section-header" style="margin-top: 4rem;">
@@ -1151,6 +1161,7 @@
                 <p class="section-desc">及时了解 Ollama 相关的安全风险与最新动态</p>
             </div>
 
+        
             <div class="chart-container">
                 <!-- 历史漏洞利用案例 -->
                 <div class="neon-card chart-card" onclick="window.open('https://jyjszx.symc.edu.cn/info/1013/1962.htm','_blank')">
@@ -1252,6 +1263,8 @@
     {{ version_data|json_script:"version-data" }}
     {{ honeypot_timeline_data|json_script:"honeypot-timeline-data" }}
     {{ honeypot_stats|json_script:"honeypot-stats" }}
+    {{ asn_data|json_script:"asn-data" }}
+    {{ asn_org_data|json_script:"asn-org-data" }}
 
     <script>
     // 导航栏滚动效果
@@ -1361,6 +1374,10 @@
             const versionData = JSON.parse(document.getElementById('version-data').textContent);
             const honeypotTimelineData = JSON.parse(document.getElementById('honeypot-timeline-data').textContent);
             const honeypotStats = JSON.parse(document.getElementById('honeypot-stats').textContent);
+            const asnData = JSON.parse(document.getElementById('asn-data').textContent);
+            const asnOrgData = JSON.parse(document.getElementById('asn-org-data').textContent);
+            
+            
             // 2. 销毁旧图表
             Object.values(charts).forEach(c => c && c.destroy());
 
@@ -1412,6 +1429,78 @@
                     }
                 }
             );
+
+            // 5. 部署ollama的ASN Top 10图
+            const asnCtx = document.getElementById('asnChart').getContext('2d');
+            charts.asn = new Chart(
+                asnCtx,
+                {
+                    type: 'bar',
+                    data: {
+                        labels: asnData.labels,
+                        datasets: [{
+                            data: asnData.data,
+                            backgroundColor: createGradient(asnCtx, '#3b82f6', '#4f46e5'),
+                            borderWidth: 0,
+                            borderRadius: 6,
+                            maxBarThickness: 35
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        plugins: {
+                            ...chartOptions.plugins,
+                            tooltip: {
+                                ...chartOptions.plugins.tooltip,
+                                callbacks: {
+                                    title: function(context) {
+                                        return `${context[0].label}`;
+                                    },
+                                    label: function(context) {
+                                        return `数量: ${context.raw}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            );
+            // 5. 部署ollama的ASN Organization Top 10图
+            const asnOrgCtx = document.getElementById('asnOrgChart').getContext('2d');
+            charts.asnOrg = new Chart(
+                asnOrgCtx,
+                {
+                    type: 'bar',
+                    data: {
+                        labels: asnOrgData.labels,
+                        datasets: [{
+                            data: asnOrgData.data,
+                            backgroundColor: createGradient(asnOrgCtx, '#3b82f6', '#4f46e5'),
+                            borderWidth: 0,
+                            borderRadius: 6,
+                            maxBarThickness: 35
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        plugins: {
+                            ...chartOptions.plugins,
+                            tooltip: {
+                                ...chartOptions.plugins.tooltip,
+                                callbacks: {
+                                    title: function(context) {
+                                        return `${context[0].label}`;
+                                    },
+                                    label: function(context) {
+                                        return `数量: ${context.raw}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            );
+
 
             // 5. 模型TOP10柱状图
             const modelCtx = document.getElementById('modelTopChart').getContext('2d');
