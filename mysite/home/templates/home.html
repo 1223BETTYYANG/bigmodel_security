@@ -6,6 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CyraSafe - 大模型部署风险评估</title>
 
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="{% static 'cyraSafe.png' %}">
+  <link rel="shortcut icon" href="{% static 'cyraSafe.png' %}">
+
   <!-- Google Font & FontAwesome -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -154,8 +158,8 @@
       top: 20%;
       left: 50%;
       transform: translateX(-50%);
-      width: 120px;
-      height: 120px;
+      width: 160px;
+      height: 160px;
       pointer-events: none;
       z-index: 0;
     }
@@ -2057,6 +2061,7 @@
       <nav class="nav-links">
         <div class="nav-item"><a href="{% url 'AllSearch:search_page' %}">一键搜索</a></div>
         <div class="nav-item"><a href="/Probing">数据探测</a></div>
+        <!-- <div class="nav-item"><a href="/rag/">智能问答</a></div> -->
         <div class="nav-item"><a href="/service-details">服务详情</a></div>
       </nav>
     </div>
@@ -2517,25 +2522,7 @@
         </div>
       </div>
       
-      <!-- 技术优势 -->
-      <div class="tech-advantages">
-        <div class="tech-item">
-          <div class="tech-number">99.9%</div>
-          <div class="tech-label">服务可用性</div>
-        </div>
-        <div class="tech-item">
-          <div class="tech-number">10+</div>
-          <div class="tech-label">AI服务支持</div>
-        </div>
-        <div class="tech-item">
-          <div class="tech-number">TB级</div>
-          <div class="tech-label">数据处理能力</div>
-        </div>
-        <div class="tech-item">
-          <div class="tech-number">实时</div>
-          <div class="tech-label">威胁检测</div>
-        </div>
-      </div>
+
     </div>
   </section>
 
